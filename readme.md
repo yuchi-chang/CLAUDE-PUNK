@@ -6,6 +6,28 @@ A cyberpunk pixel-art bar game that turns AI coding agents into bar patrons. Eac
 ![Node.js](https://img.shields.io/badge/Node.js-20+-green)
 ![License](https://img.shields.io/badge/license-MIT-yellow)
 
+## Screenshots
+
+<p align="center">
+  <img src="frontend/public/assets/screenshots/screenshot-1.png" width="600"><br>
+  <em>caption 1</em>
+</p>
+
+<p align="center">
+  <img src="frontend/public/assets/screenshots/screenshot-2.png" width="600"><br>
+  <em>caption 2</em>
+</p>
+
+<p align="center">
+  <img src="frontend/public/assets/screenshots/screenshot-3.png" width="600"><br>
+  <em>caption 3</em>
+</p>
+
+<p align="center">
+  <img src="frontend/public/assets/screenshots/screenshot-4.png" width="600"><br>
+  <em>caption 4</em>
+</p>
+
 ## How It Works
 
 1. You pick a project folder via the in-game door
