@@ -53,6 +53,7 @@ export default class FileWarpPanel {
     this.activePanel = 'files'; // 'files' | 'cmds'
     this.unsubTree = null;
     this.unsubFiles = null;
+    this._treeDebounce = null;
   }
 
   render(container) {
@@ -91,7 +92,13 @@ export default class FileWarpPanel {
     });
     this.unsubFiles = wsService.on('files.update', (payload) => {
       if (payload.sessionId !== this.sessionId) return;
-      wsService.requestFileTree(this.sessionId);
+      // Debounce: rapid file changes (npm install, git checkout) would
+      // otherwise flood the backend with recursive directory walks.
+      if (this._treeDebounce) clearTimeout(this._treeDebounce);
+      this._treeDebounce = setTimeout(() => {
+        this._treeDebounce = null;
+        wsService.requestFileTree(this.sessionId);
+      }, 500);
     });
 
     // Initial data
@@ -302,6 +309,7 @@ export default class FileWarpPanel {
 
   // ── Cleanup ─────────────────────────────────────────────────────
   destroy() {
+    if (this._treeDebounce) { clearTimeout(this._treeDebounce); this._treeDebounce = null; }
     if (this.unsubTree) { this.unsubTree(); this.unsubTree = null; }
     if (this.unsubFiles) { this.unsubFiles(); this.unsubFiles = null; }
     if (this.el && this.el.parentNode) {

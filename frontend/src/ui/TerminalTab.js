@@ -191,14 +191,21 @@ export default class TerminalTab {
     });
 
     // Watch for terminal container resize (not the wrapper)
+    // Debounced via rAF guard to prevent rapid-fire fit()/resize loops
+    // (fit() can trigger layout changes that re-fire the ResizeObserver)
     if (this.resizeObserver) this.resizeObserver.disconnect();
+    this._resizeRafId = null;
     this.resizeObserver = new ResizeObserver(() => {
-      try {
-        this.fitAddon.fit();
-        wsService.resizeTerminal(this.sessionId, this.term.cols, this.term.rows);
-      } catch {
-        // ignore
-      }
+      if (this._resizeRafId) return;
+      this._resizeRafId = requestAnimationFrame(() => {
+        this._resizeRafId = null;
+        try {
+          this.fitAddon.fit();
+          wsService.resizeTerminal(this.sessionId, this.term.cols, this.term.rows);
+        } catch {
+          // ignore
+        }
+      });
     });
     this.resizeObserver.observe(this.el);
 
@@ -211,6 +218,10 @@ export default class TerminalTab {
    * Called by DialogBox when the dialog closes or the tab switches.
    */
   detach() {
+    if (this._resizeRafId) {
+      cancelAnimationFrame(this._resizeRafId);
+      this._resizeRafId = null;
+    }
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();
       this.resizeObserver = null;
@@ -245,6 +256,10 @@ export default class TerminalTab {
     if (this.unsubReplay) {
       this.unsubReplay();
       this.unsubReplay = null;
+    }
+    if (this._resizeRafId) {
+      cancelAnimationFrame(this._resizeRafId);
+      this._resizeRafId = null;
     }
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();
