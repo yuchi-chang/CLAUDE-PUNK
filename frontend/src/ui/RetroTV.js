@@ -64,18 +64,23 @@ export default class RetroTV {
           </div>
           <div class="retro-tv-now-playing">No video loaded</div>
           <div class="retro-tv-controls">
-            <button class="retro-tv-btn retro-tv-prev" title="Previous">\u23EE</button>
-            <button class="retro-tv-btn retro-tv-play" title="Play / Pause">\u25B6</button>
-            <button class="retro-tv-btn retro-tv-next" title="Next">\u23ED</button>
-            <button class="retro-tv-btn retro-tv-loop" title="Loop Mode">ALL</button>
-            <div class="retro-tv-progress">
-              <span class="retro-tv-time retro-tv-time-current">0:00</span>
-              <input type="range" min="0" max="100" value="0" />
-              <span class="retro-tv-time retro-tv-time-duration">0:00</span>
+            <div class="retro-tv-control-buttons">
+              <button class="retro-tv-btn retro-tv-prev" title="Previous">\u23EE</button>
+              <button class="retro-tv-btn retro-tv-play" title="Play / Pause">\u25B6</button>
+              <button class="retro-tv-btn retro-tv-next" title="Next">\u23ED</button>
+              <button class="retro-tv-btn retro-tv-loop" title="Loop Mode">ALL</button>
             </div>
-            <div class="retro-tv-volume">
-              <label>VOL</label>
-              <input type="range" min="0" max="100" value="60" />
+            <div class="retro-tv-controls-row">
+              <div class="retro-tv-progress">
+                <span class="retro-tv-time retro-tv-time-current">0:00</span>
+                <input type="range" min="0" max="100" value="0" />
+                <span class="retro-tv-time retro-tv-time-duration">0:00</span>
+              </div>
+              <span class="retro-tv-controls-divider">|</span>
+              <div class="retro-tv-volume">
+                <label>VOL</label>
+                <input type="range" min="0" max="100" value="60" />
+              </div>
             </div>
           </div>
           <div class="retro-tv-section">
