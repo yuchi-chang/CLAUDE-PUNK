@@ -17,10 +17,13 @@ import { SEATS, DOOR_POSITION } from '../config/seats.js';
 import { NEON_FLICKER_MIN, NEON_FLICKER_MAX } from '../config/animations.js';
 import Character from '../entities/Character.js';
 import DrinkManager from '../entities/DrinkManager.js';
+import CostDisplay from '../entities/CostDisplay.js';
+import CostDashboard from '../entities/CostDashboard.js';
 import Bartender from '../entities/Bartender.js';
 import TerminalTab from '../ui/TerminalTab.js';
 import wsService from '../services/websocket.js';
 import jukeboxAudio from '../services/jukeboxAudio.js';
+import costTracker from '../services/costTracker.js';
 
 export default class BarScene extends Phaser.Scene {
   constructor() {
@@ -62,10 +65,12 @@ export default class BarScene extends Phaser.Scene {
       this.drawFurniture();
     }
     this.createBartender();
+    this.createCostDashboard();
     this.drawDoor();
     this.drawJukebox();
     this.drawNeonSigns();
     this.setupWebSocketListeners();
+    this.setupDemoMode();
   }
 
   // --- Placeholder Texture Generation ---------------------------------
@@ -718,8 +723,14 @@ export default class BarScene extends Phaser.Scene {
   createBartender() {
     const btX = this.hasRealBackground ? 326 : 840;
     const btY = this.hasRealBackground ? 642 : 486;
+    this.bartenderPos = { x: btX, y: btY };
     this.bartender = new Bartender(this, btX, btY);
     this.bartender.create();
+  }
+
+  createCostDashboard() {
+    const { x, y } = this.bartenderPos;
+    this.costDashboard = new CostDashboard(this, x + 10, y - 580, this.patrons);
   }
 
   drawDoor() {
@@ -1158,29 +1169,96 @@ export default class BarScene extends Phaser.Scene {
 
   // --- WebSocket Event Handling ---------------------------------------
 
+  // --- Demo Mode (Shift+D) -------------------------------------------
+
+  setupDemoMode() {
+    // Demo terminal output samples for testing speech bubbles
+    const DEMO_LINES = [
+      'Read src/components/App.tsx\n',
+      'Edit src/utils/helpers.js\n',
+      'Write src/config/settings.json\n',
+      'Bash: npm run build\n',
+      'Grep: searching for "handleClick"\n',
+      'Glob: **/*.test.ts\n',
+      'thinking...\n',
+      'error: Cannot find module "foo"\n',
+      '15 tests passed\n',
+      'commit abc1234 feat: add login\n',
+      'npm install express\n',
+      '$ git status\n',
+      'compiling TypeScript...\n',
+      'Created src/new-file.ts\n',
+      'Running migrations...\n',
+      'Task: delegating to subagent\n',
+    ];
+
+    let demoIndex = 0;
+
+    this._demoKeyHandler = (e) => {
+      // Shift+D to spawn a demo patron or feed output to existing ones
+      if (e.key === 'D' && e.shiftKey && !e.ctrlKey && !e.metaKey) {
+        // Don't trigger when typing in inputs
+        const tag = document.activeElement?.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+
+        e.preventDefault();
+
+        // If no patrons exist, create a demo one
+        if (this.patrons.size === 0) {
+          const demoId = `demo-${Date.now()}`;
+          this.handleSessionUpdate({
+            id: demoId,
+            state: 'active',
+            label: 'Demo Agent',
+            agentType: 'claude',
+          });
+        }
+
+        // Feed demo output to all patrons
+        for (const [sessionId, patron] of this.patrons) {
+          const line = DEMO_LINES[demoIndex % DEMO_LINES.length];
+          this.handleTerminalOutput({ sessionId, data: line });
+        }
+        demoIndex++;
+      }
+    };
+    document.addEventListener('keydown', this._demoKeyHandler);
+  }
+
   setupWebSocketListeners() {
+    // Track session IDs received during backend replay for reconciliation
+    this._replaySessionIds = null;
+    this._replayTimer = null;
+
     wsService.on('connection.open', () => {
       this.connectionText.setText('● ONLINE');
       this.connectionText.setColor('#00f0ff');
+
+      // Start replay reconciliation: track which sessions the backend tells us about.
+      // After the replay window closes, remove patrons for sessions that no longer exist.
+      this._replaySessionIds = new Set();
+      if (this._replayTimer) clearTimeout(this._replayTimer);
+      this._replayTimer = setTimeout(() => {
+        this._reconcileSessions();
+      }, 1500);
     });
 
     wsService.on('connection.close', () => {
       this.connectionText.setText('● OFFLINE');
       this.connectionText.setColor('#ff0080');
+      // Cancel pending reconciliation — we lost the connection mid-replay
+      if (this._replayTimer) {
+        clearTimeout(this._replayTimer);
+        this._replayTimer = null;
+      }
+      this._replaySessionIds = null;
     });
 
-    // If already connected (race condition), update status immediately
-    if (wsService.connected) {
-      this.connectionText.setText('● ONLINE');
-      this.connectionText.setColor('#00f0ff');
-    }
-
-    // Ensure WebSocket is connected (in case main.js hasn't called connect yet)
-    if (!wsService.ws) {
-      wsService.connect();
-    }
-
     wsService.on('session.update', (payload) => {
+      // Track replayed sessions for reconciliation
+      if (this._replaySessionIds) {
+        this._replaySessionIds.add(payload.id);
+      }
       this.handleSessionUpdate(payload);
     });
 
@@ -1192,6 +1270,10 @@ export default class BarScene extends Phaser.Scene {
       this.handleFilesUpdate(payload);
     });
 
+    wsService.on('terminal.output', (payload) => {
+      this.handleTerminalOutput(payload);
+    });
+
     // Character click -> open dialog
     this.events.on('character-clicked', (data) => {
       if (this.dialogBox) {
@@ -1199,6 +1281,33 @@ export default class BarScene extends Phaser.Scene {
         this.dialogBox.open(data.sessionId, meta.label, meta.state);
       }
     });
+
+    // Connect AFTER all listeners are registered, ensuring no replay messages are lost.
+    wsService.connect();
+  }
+
+  /**
+   * After a reconnect, remove patrons for sessions that the backend no longer
+   * knows about (e.g., killed while the frontend was disconnected).
+   */
+  _reconcileSessions() {
+    this._replayTimer = null;
+    const replayIds = this._replaySessionIds;
+    this._replaySessionIds = null;
+    if (!replayIds) return;
+
+    // Find patrons whose sessions were NOT in the replay (no longer on backend)
+    const staleIds = [];
+    for (const sessionId of this.patrons.keys()) {
+      if (!replayIds.has(sessionId)) {
+        staleIds.push(sessionId);
+      }
+    }
+
+    for (const sessionId of staleIds) {
+      console.log(`[BarScene] Reconcile: removing stale patron ${sessionId}`);
+      this.handleSessionTerminated({ sessionId });
+    }
   }
 
   handleSessionUpdate(payload) {
@@ -1235,9 +1344,11 @@ export default class BarScene extends Phaser.Scene {
       this.hotkeyManager.free(sessionId);
     }
 
-    // Remove character
+    // Remove character and cost display
     patron.character.exit();
     patron.drinkManager.destroy();
+    if (patron.costDisplay) patron.costDisplay.destroy();
+    costTracker.removeSession(sessionId);
 
     // Free seat
     this.occupiedSeats.delete(patron.seat.id);
@@ -1252,6 +1363,18 @@ export default class BarScene extends Phaser.Scene {
     if (!patron) return;
 
     patron.drinkManager.setDrinkCount(drinkCount);
+  }
+
+  handleTerminalOutput(payload) {
+    const { sessionId, data } = payload;
+    const patron = this.patrons.get(sessionId);
+    if (!patron) return;
+
+    // Feed to speech bubble
+    patron.character.onTerminalOutput(data);
+
+    // Feed to cost tracker
+    costTracker.onTerminalOutput(sessionId, data);
   }
 
   // --- Patron Management ----------------------------------------------
@@ -1277,7 +1400,11 @@ export default class BarScene extends Phaser.Scene {
 
     const drinkManager = new DrinkManager(this, character, seat);
 
-    this.patrons.set(sessionId, { character, drinkManager, seat });
+    // Initialize cost tracking and display
+    costTracker.initSession(sessionId, agentType);
+    const costDisplay = new CostDisplay(this, sessionId, seat.drinkAnchor);
+
+    this.patrons.set(sessionId, { character, drinkManager, costDisplay, seat });
   }
 
   findAvailableSeat() {

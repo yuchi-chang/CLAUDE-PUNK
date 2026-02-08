@@ -164,6 +164,31 @@ Click the **jukebox** sprite on the left side of the bar to open the music playe
 - **Background music** — the bar's ambient background music automatically pauses when the jukebox plays and resumes when it stops
 - The jukebox sprite shows an animated equalizer while music is playing
 
+### Bar Tab (Cost Dashboard)
+
+A neon "BAR TAB" menu board is displayed near the bartender, showing estimated API token usage and cost for each active agent at a glance.
+
+- Each row shows the agent's hotkey letter, token count (e.g. `12.4K`), and estimated cost (e.g. `$2.40`)
+- Click a row to open that agent's dialog panel
+- A **TOTAL** row at the bottom sums up all active sessions
+- Cost colors shift from green (< $1) to amber (< $5) to red ($5+)
+- Each character also has a small **cost price tag** floating near their drink area
+- Cost data is estimated from terminal output using a hybrid approach:
+  - Parses Claude CLI cost output when available (accurate)
+  - Falls back to character-count heuristic (~4 chars/token) when not
+- Cost data persists in localStorage and auto-expires after 24 hours
+
+### Speech Bubbles
+
+Each character shows a pixel-art speech bubble above their head summarizing what the agent is currently doing.
+
+- Bubbles auto-detect activity from terminal output using pattern matching (e.g. `Reading main.js`, `Running cmd...`, `Searching...`, `Committed abc1234`)
+- Recognized patterns include: file read/write/edit, bash commands, search, build/test, git operations, npm commands, and more
+- When no pattern matches but output is flowing, a typing indicator (`...`) animates
+- Bubbles fade out after 5 seconds of inactivity and fully hide after 8 seconds
+- Summary text is capped at 20 characters for a clean look
+- Styled with the cyberpunk color palette: dark panel background with neon cyan border
+
 ## Keyboard Shortcuts
 
 | Shortcut | Context | Action |
@@ -187,7 +212,7 @@ claude-punk/
 │   ├── src/
 │   │   ├── main.js         # Phaser game bootstrap
 │   │   ├── scenes/         # Game scenes (BarScene)
-│   │   ├── entities/       # Character, Bartender, DrinkManager
+│   │   ├── entities/       # Character, Bartender, DrinkManager, CostDashboard, SpeechBubble
 │   │   ├── managers/       # HotkeyManager (keyboard shortcuts)
 │   │   ├── ui/             # HTML/CSS overlay panels
 │   │   │   ├── DialogBox.js
@@ -379,6 +404,31 @@ Vite 會自動將 `/ws` 和 `/api` 請求代理到後端，所以只需透過一
 - **背景音樂** —— 點唱機播放時，酒吧的環境背景音樂會自動暫停；點唱機停止後自動恢復
 - 音樂播放時，點唱機精靈圖會顯示動態等化器動畫
 
+### 吧台帳單（Bar Tab）
+
+調酒師旁邊有一塊霓虹風格的「BAR TAB」菜單看板，一目了然顯示每個 Agent 的預估 API Token 用量與費用。
+
+- 每行顯示 Agent 的快捷鍵字母、Token 數量（如 `12.4K`）和預估費用（如 `$2.40`）
+- 點擊任一行即可開啟該 Agent 的對話面板
+- 底部有 **TOTAL** 列，加總所有活躍 session 的費用
+- 費用顏色隨金額變化：綠色（< $1）→ 琥珀色（< $5）→ 紅色（$5+）
+- 每個角色的飲料區域旁也有一個小型**費用標籤**浮動顯示
+- 費用估算採用混合策略：
+  - 優先解析 Claude CLI 輸出的費用資訊（精確）
+  - 無法解析時使用字元數推估（約 4 字元/token）
+- 費用資料儲存於 localStorage，24 小時後自動過期
+
+### 對話氣泡（Speech Bubbles）
+
+每個角色頭上會顯示像素風格的對話氣泡，簡要描述 Agent 當前正在做什麼。
+
+- 氣泡透過模式比對自動偵測終端機輸出中的活動（如 `Reading main.js`、`Running cmd...`、`Searching...`、`Committed abc1234`）
+- 可識別的模式包括：檔案讀寫/編輯、bash 指令、搜尋、建置/測試、git 操作、npm 指令等
+- 當無法匹配模式但有輸出時，會顯示打字指示器（`...`）動畫
+- 無活動 5 秒後氣泡開始淡出，8 秒後完全隱藏
+- 摘要文字限制 20 字元以保持整潔
+- 風格遵循賽博龐克配色：深色面板背景搭配霓虹青色邊框
+
 ## 快捷鍵
 
 | 快捷鍵 | 情境 | 動作 |
@@ -402,7 +452,7 @@ claude-punk/
 │   ├── src/
 │   │   ├── main.js         # Phaser 遊戲啟動
 │   │   ├── scenes/         # 遊戲場景（BarScene）
-│   │   ├── entities/       # Character、Bartender、DrinkManager
+│   │   ├── entities/       # Character、Bartender、DrinkManager、CostDashboard、SpeechBubble
 │   │   ├── managers/       # HotkeyManager（鍵盤快捷鍵）
 │   │   ├── ui/             # HTML/CSS 覆蓋面板
 │   │   │   ├── DialogBox.js

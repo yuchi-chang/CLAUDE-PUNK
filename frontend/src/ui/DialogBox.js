@@ -5,6 +5,7 @@
  */
 
 import wsService from '../services/websocket.js';
+import costTracker from '../services/costTracker.js';
 import TerminalTab from './TerminalTab.js';
 import FilesTab from './FilesTab.js';
 import ClaudeConfigTab from './ClaudeConfigTab.js';
@@ -27,6 +28,7 @@ export default class DialogBox {
         <div id="dialog-header">
           <span id="dialog-title">Session</span>
           <span id="dialog-status" class="status-badge">active</span>
+          <span id="dialog-cost" class="cost-badge" title="Estimated session cost">$0.00</span>
           <button id="dialog-kill" class="kill-btn" title="Terminate session">KILL</button>
           <span id="dialog-shortcut" class="shortcut-hint">Ctrl+\`</span>
           <button id="dialog-close" title="Close (Ctrl+\`)">&times;</button>
@@ -107,6 +109,12 @@ export default class DialogBox {
       killBtn.classList.add('hidden');
     }
 
+    // Update cost display
+    this.updateCostDisplay();
+    this.costUnsub = costTracker.onChange((changedId) => {
+      if (changedId === this.currentSessionId) this.updateCostDisplay();
+    });
+
     // Show
     this.overlay.classList.remove('hidden');
     if (this.onOpen) this.onOpen();
@@ -129,6 +137,7 @@ export default class DialogBox {
     this.visible = false;
     this.overlay.classList.add('hidden');
     this.currentSessionId = null;
+    if (this.costUnsub) { this.costUnsub(); this.costUnsub = null; }
     // Detach tabs from DOM (TerminalTab stays alive in cache)
     this.detachTabs();
     if (this.onClose) this.onClose();
@@ -166,6 +175,18 @@ export default class DialogBox {
     const sent = wsService.sendPrompt(this.currentSessionId, prompt);
     if (sent) {
       input.value = '';
+    }
+  }
+
+  updateCostDisplay() {
+    const costEl = this.overlay.querySelector('#dialog-cost');
+    if (!costEl || !this.currentSessionId) return;
+    const data = costTracker.getSessionCost(this.currentSessionId);
+    if (data) {
+      const costStr = costTracker.formatCost(data.cost);
+      const tokens = costTracker.formatTokens(data.inputTokens + data.outputTokens);
+      costEl.textContent = `${costStr} (${tokens} tokens)`;
+      costEl.title = `Input: ${costTracker.formatTokens(data.inputTokens)} | Output: ${costTracker.formatTokens(data.outputTokens)} | ${data.method}`;
     }
   }
 

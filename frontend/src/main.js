@@ -70,8 +70,8 @@ game.events.on('ready', () => {
   jukeboxUI.onShow = () => { scene.input.enabled = false; };
   jukeboxUI.onHide = () => { scene.input.enabled = true; };
 
-  // Connect WebSocket
-  wsService.connect();
+  // WebSocket connection is initiated by BarScene.setupWebSocketListeners()
+  // after all event listeners are registered, ensuring no replay messages are lost.
 
   // Folder picker callback — visual feedback when session requested
   folderPicker.onSessionCreated = ({ label }) => {

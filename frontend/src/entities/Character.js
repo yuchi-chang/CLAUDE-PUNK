@@ -8,6 +8,36 @@
 
 import { POSE, CHARACTER_POSES, POSE_MIN_DURATION, POSE_MAX_DURATION, WALK_SPEED, CHARACTER_VARIANT_COUNT } from '../config/animations.js';
 import { DOOR_POSITION } from '../config/seats.js';
+import { BUBBLE_ENABLED } from '../config/bubbles.js';
+import SpeechBubble from './SpeechBubble.js';
+
+// Per-variant, per-frame corrections for sprite size/position consistency.
+// scale: compensates oversized frames (e.g., 0.77 = frame is 30% too large)
+// offsetY: compensates vertical misalignment in world pixels (positive = down)
+const FRAME_CORRECTIONS = {
+  1: {
+    [POSE.IDLE]: { offsetY: 30 },
+    [POSE.DRINKING]: { offsetY: -10 },
+  },
+  3: {
+    [POSE.IDLE]: { scale: 0.77 },
+    [POSE.DRINKING]: { scale: 0.71 },
+    [POSE.LOOKING]: { scale: 0.71 },
+  },
+  5: {
+    [POSE.IDLE]: { scale: 0.77 },
+    [POSE.LEANING]: { scale: 0.77 },
+    [POSE.LOOKING]: { scale: 0.77 },
+  },
+  6: {
+    [POSE.IDLE]: { scale: 0.71 },
+  },
+  7: {
+    [POSE.IDLE]: { scale: 0.91 },
+    [POSE.LEANING]: { scale: 0.91 },
+    [POSE.LOOKING]: { scale: 0.91 },
+  },
+};
 
 export default class Character {
   constructor(scene, sessionId, seat, label, agentType = 'claude') {
@@ -26,6 +56,9 @@ export default class Character {
 
     // Pick a random character variant (for visual diversity)
     this.variant = Phaser.Math.Between(0, CHARACTER_VARIANT_COUNT - 1);
+
+    // Speech bubble (created after sprite + label exist)
+    this.speechBubble = null;
   }
 
   create() {
@@ -38,16 +71,16 @@ export default class Character {
     this.sprite.setDepth(10);
     this.sprite.setAlpha(0);
 
-    // Name label above character (colored by agent type)
+    // Name label below character (colored by agent type)
     const nameColor = this.agentType === 'codex' ? '#00a0ff' : '#ffaa00';
-    this.nameText = this.scene.add.text(DOOR_POSITION.x, DOOR_POSITION.y - 204, this.label, {
-      fontSize: '24px',
+    this.nameText = this.scene.add.text(DOOR_POSITION.x, DOOR_POSITION.y + 6, this.label, {
+      fontSize: '18px',
       fontFamily: 'Rajdhani, sans-serif',
       color: nameColor,
       stroke: '#0a0a14',
-      strokeThickness: 6,
+      strokeThickness: 4,
     });
-    this.nameText.setOrigin(0.5, 1);
+    this.nameText.setOrigin(0.5, 0);
     this.nameText.setDepth(15);
     this.nameText.setAlpha(0);
 
@@ -93,7 +126,7 @@ export default class Character {
     this.scene.tweens.add({
       targets: this.nameText,
       x: this.seat.x,
-      y: this.seat.y - 204,
+      y: this.seat.y + 6,
       duration: Math.max(duration, 400),
       ease: 'Power1',
       onComplete: () => {
@@ -128,6 +161,11 @@ export default class Character {
     // Start pose cycling
     this.setPose(POSE.IDLE);
     this.schedulePoseChange();
+
+    // Create speech bubble once seated
+    if (BUBBLE_ENABLED) {
+      this.speechBubble = new SpeechBubble(this.scene, this);
+    }
   }
 
   setPose(pose) {
@@ -156,45 +194,58 @@ export default class Character {
     };
 
     const atlasFrame = atlasFrameMap[pose];
+    let usedAtlas = false;
+
     if (texture && texture.has(atlasFrame)) {
       this.sprite.setFrame(atlasFrame);
       this.sprite.setRotation(0);
-      return;
+      usedAtlas = true;
+    } else {
+      // Fallback: placeholder pose differentiation via frame index
+      const frameMap = {
+        [POSE.IDLE]: 0,
+        [POSE.DRINKING]: 1,
+        [POSE.LEANING]: 2,
+        [POSE.LOOKING]: 3,
+        'walk': 0,
+      };
+
+      const frameIndex = frameMap[pose] ?? 0;
+
+      if (texture && texture.frameTotal > 1) {
+        this.sprite.setFrame(frameIndex % texture.frameTotal);
+      }
+
+      const baseFaceLeft = !!this.seat.faceLeft;
+      switch (pose) {
+        case POSE.DRINKING:
+          this.sprite.setRotation(-0.05);
+          this.sprite.setFlipX(baseFaceLeft);
+          break;
+        case POSE.LEANING:
+          this.sprite.setRotation(0.08);
+          this.sprite.setFlipX(baseFaceLeft);
+          break;
+        case POSE.LOOKING:
+          this.sprite.setRotation(0);
+          this.sprite.setFlipX(!baseFaceLeft);
+          break;
+        default:
+          this.sprite.setRotation(0);
+          this.sprite.setFlipX(baseFaceLeft);
+          break;
+      }
     }
 
-    // Fallback: placeholder pose differentiation via frame index
-    const frameMap = {
-      [POSE.IDLE]: 0,
-      [POSE.DRINKING]: 1,
-      [POSE.LEANING]: 2,
-      [POSE.LOOKING]: 3,
-      'walk': 0,
-    };
+    // Apply per-frame corrections for real sprites
+    if (usedAtlas) {
+      const poseKey = pose === 'walk' ? POSE.IDLE : pose;
+      const correction = FRAME_CORRECTIONS[this.variant]?.[poseKey];
+      this.sprite.setScale(1.5 * (correction?.scale ?? 1.0));
 
-    const frameIndex = frameMap[pose] ?? 0;
-
-    if (texture && texture.frameTotal > 1) {
-      this.sprite.setFrame(frameIndex % texture.frameTotal);
-    }
-
-    const baseFaceLeft = !!this.seat.faceLeft;
-    switch (pose) {
-      case POSE.DRINKING:
-        this.sprite.setRotation(-0.05);
-        this.sprite.setFlipX(baseFaceLeft);
-        break;
-      case POSE.LEANING:
-        this.sprite.setRotation(0.08);
-        this.sprite.setFlipX(baseFaceLeft);
-        break;
-      case POSE.LOOKING:
-        this.sprite.setRotation(0);
-        this.sprite.setFlipX(!baseFaceLeft);
-        break;
-      default:
-        this.sprite.setRotation(0);
-        this.sprite.setFlipX(baseFaceLeft);
-        break;
+      if (this.isSeated) {
+        this.sprite.y = this.seat.y + (correction?.offsetY ?? 0);
+      }
     }
   }
 
@@ -223,6 +274,11 @@ export default class Character {
       this.poseTimer.remove();
     }
 
+    if (this.speechBubble) {
+      this.speechBubble.destroy();
+      this.speechBubble = null;
+    }
+
     if (this.sprite) {
       this.sprite.disableInteractive();
       this.scene.tweens.add({
@@ -245,6 +301,16 @@ export default class Character {
     this.hotkey = letter;
     if (this.nameText) {
       this.nameText.setText(`(${letter}) ${this.label}`);
+    }
+  }
+
+  /**
+   * Feed raw terminal output to the speech bubble for summary extraction.
+   * @param {string} data - Raw PTY output chunk
+   */
+  onTerminalOutput(data) {
+    if (this.speechBubble) {
+      this.speechBubble.onTerminalOutput(data);
     }
   }
 

@@ -43,6 +43,16 @@
   letter-spacing: 1px;
 }
 
+.cost-badge {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--accent-amber);
+  border: 1px solid rgba(255, 170, 0, 0.3);
+  padding: 1px 8px;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
 .kill-btn {
   font-family: var(--font-ui);
   font-size: 10px;

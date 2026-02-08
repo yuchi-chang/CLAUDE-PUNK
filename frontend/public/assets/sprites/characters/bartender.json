@@ -1,10 +1,40 @@
 {
   "frames": {
-    "bartender-idle":   { "frame": { "x": 0,   "y": 0, "w": 84, "h": 156 } },
-    "bartender-wipe":   { "frame": { "x": 84,  "y": 0, "w": 84, "h": 156 } },
-    "bartender-look-l": { "frame": { "x": 168, "y": 0, "w": 84, "h": 156 } },
-    "bartender-look-r": { "frame": { "x": 252, "y": 0, "w": 84, "h": 156 } },
-    "bartender-lean":   { "frame": { "x": 336, "y": 0, "w": 84, "h": 156 } }
+    "bartender-idle": {
+      "frame": { "x": 0, "y": 0, "w": 84, "h": 156 },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": { "x": 6, "y": 36, "w": 84, "h": 156 },
+      "sourceSize": { "w": 96, "h": 192 }
+    },
+    "bartender-wipe": {
+      "frame": { "x": 84, "y": 0, "w": 84, "h": 156 },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": { "x": 6, "y": 36, "w": 84, "h": 156 },
+      "sourceSize": { "w": 96, "h": 192 }
+    },
+    "bartender-look-l": {
+      "frame": { "x": 168, "y": 0, "w": 84, "h": 156 },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": { "x": 6, "y": 36, "w": 84, "h": 156 },
+      "sourceSize": { "w": 96, "h": 192 }
+    },
+    "bartender-look-r": {
+      "frame": { "x": 252, "y": 0, "w": 84, "h": 156 },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": { "x": 6, "y": 36, "w": 84, "h": 156 },
+      "sourceSize": { "w": 96, "h": 192 }
+    },
+    "bartender-lean": {
+      "frame": { "x": 336, "y": 0, "w": 84, "h": 156 },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": { "x": 6, "y": 36, "w": 84, "h": 156 },
+      "sourceSize": { "w": 96, "h": 192 }
+    }
   },
   "meta": {
     "image": "bartender.png",

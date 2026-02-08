@@ -49,6 +49,7 @@ const CONFIG = {
   fileWatchDebounceMs: 500,
   fileTreeMaxDepth: 10,
   shutdownTimeoutMs: 5000,
+  rawBufferMaxBytes: 100_000, // 100KB cap for raw terminal replay buffer
 };
 
 // Directories/files to exclude from file watching and tree building
@@ -89,6 +90,33 @@ class RingBuffer {
       result[i] = this.buffer[(start + i) % this.capacity];
     }
     return result;
+  }
+}
+
+// ─── Section 2b: RawReplayBuffer ─────────────────────────────────────────────
+
+/** Capped string buffer that keeps the most recent N bytes of raw PTY output. */
+class RawReplayBuffer {
+  constructor(maxBytes = CONFIG.rawBufferMaxBytes) {
+    this.maxBytes = maxBytes;
+    this.chunks = [];
+    this.totalBytes = 0;
+  }
+
+  write(data) {
+    const len = Buffer.byteLength(data, 'utf8');
+    this.chunks.push(data);
+    this.totalBytes += len;
+    // Evict oldest chunks until under cap
+    while (this.totalBytes > this.maxBytes && this.chunks.length > 1) {
+      const removed = this.chunks.shift();
+      this.totalBytes -= Buffer.byteLength(removed, 'utf8');
+    }
+  }
+
+  /** Return all stored output as a single string. */
+  read() {
+    return this.chunks.join('');
   }
 }
 
@@ -244,6 +272,7 @@ class SessionManager extends EventEmitter {
     });
 
     const ringBuffer = new RingBuffer();
+    const rawReplayBuffer = new RawReplayBuffer();
 
     const lineBuffer = new LineBuffer((stream, line) => {
       const outputMsg = { sessionId: id, stream, data: line, timestamp: new Date().toISOString() };
@@ -254,6 +283,7 @@ class SessionManager extends EventEmitter {
     // node-pty merges stdout+stderr into single stream
     proc.onData((data) => {
       lineBuffer.feed('stdout', data);
+      rawReplayBuffer.write(data);
       // Also emit raw data for xterm.js rendering
       this.emit('terminal-output', { sessionId: id, data });
     });
@@ -273,6 +303,12 @@ class SessionManager extends EventEmitter {
       }
 
       this.emit('session-exit', { sessionId: id, exitCode });
+
+      // Clean up terminated session from memory after a short delay
+      // (allows the exit event to propagate to WS clients first)
+      setTimeout(() => {
+        this.sessions.delete(id);
+      }, 5000);
     });
 
     const session = {
@@ -284,6 +320,7 @@ class SessionManager extends EventEmitter {
       createdAt,
       proc,
       ringBuffer,
+      rawReplayBuffer,
       lineBuffer,
       exitCode: null,
     };
@@ -355,8 +392,30 @@ class SessionManager extends EventEmitter {
     return session.ringBuffer.readAll();
   }
 
+  getRawReplay(id) {
+    const session = this.sessions.get(id);
+    if (!session) return '';
+    return session.rawReplayBuffer.read();
+  }
+
   list() {
+    return Array.from(this.sessions.values())
+      .filter((s) => s.state !== 'terminated')
+      .map((s) => this.toPublic(s));
+  }
+
+  /** Return all sessions including terminated ones (for debugging). */
+  listAll() {
     return Array.from(this.sessions.values()).map((s) => this.toPublic(s));
+  }
+
+  /** Remove terminated sessions from memory. */
+  pruneTerminated() {
+    for (const [id, session] of this.sessions) {
+      if (session.state === 'terminated') {
+        this.sessions.delete(id);
+      }
+    }
   }
 
   get(id) {
@@ -391,6 +450,7 @@ class FileWatcher extends EventEmitter {
   constructor() {
     super();
     this.watchers = new Map(); // sessionId -> { watcher, workDir, debounceTimer }
+    this.latestCounts = new Map(); // sessionId -> { fileCount, drinkCount }
   }
 
   watch(sessionId, workDir) {
@@ -415,6 +475,7 @@ class FileWatcher extends EventEmitter {
         try {
           const fileCount = await this.countFiles(workDir);
           const drinkCount = Math.floor(fileCount / CONFIG.fileCountRatio);
+          this.latestCounts.set(sessionId, { fileCount, drinkCount });
           this.emit('files-update', { sessionId, fileCount, drinkCount });
         } catch (err) {
           console.error(`[FileWatcher] Error counting files for ${sessionId}:`, err.message);
@@ -458,6 +519,7 @@ class FileWatcher extends EventEmitter {
     if (entry.debounceTimer) clearTimeout(entry.debounceTimer);
     entry.watcher.close();
     this.watchers.delete(sessionId);
+    this.latestCounts.delete(sessionId);
   }
 
   unwatchAll() {
@@ -617,16 +679,29 @@ function createWSS(server, sessionManager, fileWatcher) {
     ws._alive = true;
     ws.on('pong', () => { ws._alive = true; });
 
-    // Replay: send all current session states
-    for (const session of sessionManager.list()) {
+    // Replay: send all active session states (resume support)
+    const activeSessions = sessionManager.list();
+    for (const session of activeSessions) {
       sendToClient(ws, 'session.update', session);
     }
 
-    // Replay: send output history for each active session
-    for (const session of sessionManager.list()) {
-      const history = sessionManager.getHistory(session.id);
-      for (const msg of history) {
-        sendToClient(ws, 'session.output', msg);
+    // Replay: send raw terminal output for xterm.js rendering
+    for (const session of activeSessions) {
+      const rawData = sessionManager.getRawReplay(session.id);
+      if (rawData) {
+        sendToClient(ws, 'terminal.output', { sessionId: session.id, data: rawData });
+      }
+    }
+
+    // Replay: send current file counts (drinks)
+    for (const session of activeSessions) {
+      const counts = fileWatcher.latestCounts.get(session.id);
+      if (counts) {
+        sendToClient(ws, 'files.update', {
+          sessionId: session.id,
+          fileCount: counts.fileCount,
+          drinkCount: counts.drinkCount,
+        });
       }
     }
 
@@ -881,8 +956,9 @@ function createRESTRouter(sessionManager, fileWatcher, broadcastFn) {
     }
   });
 
-  router.get('/sessions', (_req, res) => {
-    res.json(sessionManager.list());
+  router.get('/sessions', (req, res) => {
+    const all = req.query.all === 'true';
+    res.json(all ? sessionManager.listAll() : sessionManager.list());
   });
 
   router.get('/sessions/:id', (req, res) => {

@@ -14,8 +14,21 @@ class WebSocketService {
   }
 
   connect(url) {
+    // Cancel any pending reconnect to prevent cascade
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+
+    // Detach old WS handlers before closing to prevent its onclose
+    // from triggering another reconnect cycle
     if (this.ws) {
+      this.ws.onopen = null;
+      this.ws.onclose = null;
+      this.ws.onerror = null;
+      this.ws.onmessage = null;
       this.ws.close();
+      this.ws = null;
     }
 
     const wsUrl = url || `ws://${window.location.host}/ws`;
@@ -29,6 +42,7 @@ class WebSocketService {
 
     this.ws.onclose = () => {
       this.connected = false;
+      this.ws = null;
       this.emit('connection.close', {});
       this.scheduleReconnect();
     };
@@ -106,6 +120,10 @@ class WebSocketService {
       this.reconnectTimer = null;
     }
     if (this.ws) {
+      this.ws.onopen = null;
+      this.ws.onclose = null;
+      this.ws.onerror = null;
+      this.ws.onmessage = null;
       this.ws.close();
       this.ws = null;
     }
