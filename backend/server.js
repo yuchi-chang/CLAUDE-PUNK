@@ -908,6 +908,77 @@ function createWSS(server, sessionManager, fileWatcher) {
             break;
           }
 
+          case 'file.create': {
+            const { sessionId, filePath, isDir } = msg.payload;
+            if (!sessionId || !filePath) {
+              sendToClient(ws, 'error', { message: 'sessionId and filePath are required', code: 'INVALID_MESSAGE' });
+              return;
+            }
+            const createSession = sessionManager.get(sessionId);
+            if (!createSession) {
+              sendToClient(ws, 'error', { message: 'Session not found', code: 'SESSION_NOT_FOUND' });
+              return;
+            }
+            const createAbsPath = path.resolve(createSession.workDir, filePath);
+            if (!createAbsPath.startsWith(createSession.workDir)) {
+              sendToClient(ws, 'error', { message: 'Path traversal not allowed', code: 'INVALID_MESSAGE' });
+              return;
+            }
+            try {
+              if (isDir) {
+                await fs.promises.mkdir(createAbsPath, { recursive: true });
+              } else {
+                // Ensure parent directory exists
+                await fs.promises.mkdir(path.dirname(createAbsPath), { recursive: true });
+                // Create empty file (fail if already exists)
+                await fs.promises.writeFile(createAbsPath, '', { flag: 'wx' });
+              }
+              sendToClient(ws, 'file.created', { sessionId, filePath, isDir: !!isDir });
+            } catch (err) {
+              if (err.code === 'EEXIST') {
+                sendToClient(ws, 'error', { message: 'File already exists', code: 'INVALID_MESSAGE' });
+              } else {
+                sendToClient(ws, 'error', { message: `Cannot create: ${err.message}`, code: 'INVALID_MESSAGE' });
+              }
+            }
+            break;
+          }
+
+          case 'file.delete': {
+            const { sessionId, filePath } = msg.payload;
+            if (!sessionId || !filePath) {
+              sendToClient(ws, 'error', { message: 'sessionId and filePath are required', code: 'INVALID_MESSAGE' });
+              return;
+            }
+            const delSession = sessionManager.get(sessionId);
+            if (!delSession) {
+              sendToClient(ws, 'error', { message: 'Session not found', code: 'SESSION_NOT_FOUND' });
+              return;
+            }
+            const delAbsPath = path.resolve(delSession.workDir, filePath);
+            if (!delAbsPath.startsWith(delSession.workDir)) {
+              sendToClient(ws, 'error', { message: 'Path traversal not allowed', code: 'INVALID_MESSAGE' });
+              return;
+            }
+            // Prevent deleting the workDir itself
+            if (delAbsPath === delSession.workDir) {
+              sendToClient(ws, 'error', { message: 'Cannot delete root directory', code: 'INVALID_MESSAGE' });
+              return;
+            }
+            try {
+              const stat = await fs.promises.stat(delAbsPath);
+              if (stat.isDirectory()) {
+                await fs.promises.rm(delAbsPath, { recursive: true });
+              } else {
+                await fs.promises.unlink(delAbsPath);
+              }
+              sendToClient(ws, 'file.deleted', { sessionId, filePath });
+            } catch (err) {
+              sendToClient(ws, 'error', { message: `Cannot delete: ${err.message}`, code: 'INVALID_MESSAGE' });
+            }
+            break;
+          }
+
           case 'claude.requestConfig': {
             const { sessionId } = msg.payload;
             if (!sessionId) {

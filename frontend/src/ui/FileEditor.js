@@ -262,6 +262,18 @@ export default class FileEditor {
     this.showingPreview = false;
 
     const filenameEl = this.el.querySelector('.fe-filename');
+
+    if (!filePath) {
+      filenameEl.textContent = 'No file selected';
+      filenameEl.title = '';
+      this.el.querySelector('.fe-toggle-edit').classList.add('hidden');
+      this.el.querySelector('.fe-toggle-preview').classList.add('hidden');
+      this.el.querySelector('.fe-save').classList.add('hidden');
+      this._showEditorMode();
+      if (this.editor) { this.editor.setValue(''); }
+      return;
+    }
+
     filenameEl.textContent = filePath;
     filenameEl.title = filePath;
 

@@ -5,6 +5,7 @@
   flex-direction: row;
   height: 100%;
   overflow: hidden;
+  position: relative;
 }
 
 .files-tab .files-sidebar {
@@ -145,7 +146,7 @@
 }
 
 /* Selected file highlight in the tree sidebar */
-.file-node.selected > .file-label {
+.file-node.selected > .file-row .file-label {
   background: #00f0ff1a;
   color: #00f0ff;
 }

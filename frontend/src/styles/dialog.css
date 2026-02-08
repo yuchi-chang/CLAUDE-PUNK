@@ -221,6 +221,13 @@
   color: var(--accent-amber);
 }
 
+.files-header-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.files-new-file,
+.files-new-dir,
 .files-refresh {
   background: none;
   border: 1px solid var(--text-secondary);
@@ -228,15 +235,21 @@
   width: 24px;
   height: 24px;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
+.files-new-file:hover,
+.files-new-dir:hover,
 .files-refresh:hover {
   border-color: var(--border-neon);
   color: var(--border-neon);
+}
+
+.files-refresh {
+  font-size: 14px;
 }
 
 .files-tree {
@@ -275,16 +288,167 @@
   display: block;
 }
 
+.file-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
 .file-label {
+  flex: 1;
   display: block;
   padding: 2px 0;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.file-delete-btn {
+  display: none;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.file-row:hover .file-delete-btn {
+  display: block;
+}
+
+.file-delete-btn:hover {
+  color: var(--accent-pink);
 }
 
 .file-size {
   color: var(--text-secondary);
   margin-left: 8px;
   font-size: 10px;
+}
+
+/* ─── Create File Input ──────────────────────────────────────── */
+
+.file-create-input {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid rgba(0, 240, 255, 0.15);
+}
+
+.file-create-icon {
+  color: var(--border-neon);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.file-create-field {
+  flex: 1;
+  background: var(--bg-primary);
+  border: 1px solid var(--text-secondary);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 2px 6px;
+  outline: none;
+  min-width: 0;
+}
+
+.file-create-field:focus {
+  border-color: var(--border-neon);
+}
+
+.file-create-cancel {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0 2px;
+  line-height: 1;
+}
+
+.file-create-cancel:hover {
+  color: var(--accent-pink);
+}
+
+/* ─── Delete Confirmation Overlay ────────────────────────────── */
+
+.file-confirm-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(10, 10, 20, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+.file-confirm-box {
+  background: var(--bg-panel);
+  border: 1px solid var(--accent-pink);
+  padding: 16px 20px;
+  max-width: 320px;
+  text-align: center;
+}
+
+.file-confirm-msg {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-primary);
+  margin-bottom: 12px;
+  line-height: 1.5;
+}
+
+.file-confirm-msg strong {
+  color: var(--accent-pink);
+}
+
+.file-confirm-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.file-confirm-yes,
+.file-confirm-no {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 14px;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  border: 1px solid;
+}
+
+.file-confirm-yes {
+  background: rgba(255, 0, 128, 0.15);
+  border-color: var(--accent-pink);
+  color: var(--accent-pink);
+}
+
+.file-confirm-yes:hover {
+  background: rgba(255, 0, 128, 0.3);
+}
+
+.file-confirm-no {
+  background: none;
+  border-color: var(--text-secondary);
+  color: var(--text-secondary);
+}
+
+.file-confirm-no:hover {
+  border-color: var(--border-neon);
+  color: var(--border-neon);
 }
 
 .files-loading,

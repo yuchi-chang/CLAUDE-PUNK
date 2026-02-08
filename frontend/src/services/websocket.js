@@ -171,6 +171,14 @@ class WebSocketService {
   writeFile(sessionId, filePath, content) {
     return this.send('file.write', { sessionId, filePath, content });
   }
+
+  createFile(sessionId, filePath, isDir = false) {
+    return this.send('file.create', { sessionId, filePath, isDir });
+  }
+
+  deleteFile(sessionId, filePath) {
+    return this.send('file.delete', { sessionId, filePath });
+  }
 }
 
 // Singleton
