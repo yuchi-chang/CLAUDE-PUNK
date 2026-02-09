@@ -42,6 +42,7 @@ export default class VolumeControl {
     this.slider.value = String(Math.round(audioManager.getVolume() * 100));
     this.slider.addEventListener('input', () => {
       const val = parseInt(this.slider.value, 10) / 100;
+      this._syncing = true;
       audioManager.setVolume(val);
       jukeboxAudio.setVolume(val);
       retroTvPlayer.setVolume(val);
@@ -49,14 +50,21 @@ export default class VolumeControl {
         audioManager.setMuted(false);
         jukeboxAudio.setMuted(false);
         retroTvPlayer.setMuted(false);
-        this.updateMuteIcon(false);
       }
+      this._syncing = false;
     });
 
     this.el.appendChild(this.muteBtn);
     this.el.appendChild(this.slider);
 
     document.getElementById('game-container').appendChild(this.el);
+
+    // Sync slider when volume changes from elsewhere (e.g. RetroTV overlay)
+    audioManager.onVolumeChange = (vol, muted) => {
+      if (this._syncing) return;
+      this.slider.value = String(Math.round(vol * 100));
+      this.updateMuteIcon(muted);
+    };
   }
 
   updateMuteIcon(muted) {

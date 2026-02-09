@@ -598,6 +598,114 @@ convert assets/sprites/characters/character-0.png -unique-colors txt: | wc -l
 
 ---
 
+## 10. Wall-Mounted Digital Display (3 frames)
+
+**File**: `assets/sprites/objects/retro-tv.png`
+**Dimensions**: 960x180 pixels total (3 frames of 320x180 each, horizontal strip)
+**Format**: PNG with alpha
+
+A sleek wall-mounted flat panel display for the cyberpunk bar. The game shows
+frame 1 when idle/off, and cycles frames 2-3 when a YouTube video is playing
+(neon edge-glow pulse animation). A live YouTube iframe is overlaid on the
+screen area at runtime.
+
+- **Frame 1 (Off)**: Screen dark, edge lighting dim
+- **Frame 2 (On A)**: Screen faint glow, edge neon bright
+- **Frame 3 (On B)**: Screen alternate glow, edge neon pulses
+
+**Screen area** (where YouTube iframe overlays): **x=8, y=8, w=304, h=152**
+(relative to each 320x180 frame). This MUST be a clean, dark, rectangular area
+with no decorations inside it.
+
+**Prompt**:
+```
+Pixel art sprite sheet, 960x180 pixels total, 3 frames of 320x180 each, horizontal
+strip. Cyberpunk wall-mounted flat panel digital display, front-facing view.
+Futuristic slim design — think holographic-edge monitor in a neon-lit bar.
+
+DISPLAY STRUCTURE (identical across all 3 frames):
+- FRAME/HOUSING: Ultra-thin bezel (~4-6px) surrounding the screen. Dark metallic
+  (#2a2a3a) with brushed-metal pixel texture. Slightly rounded corners (3px radius).
+  The frame is nearly edge-to-edge — this is a modern display, NOT a bulky CRT.
+- SCREEN AREA: Large dark rectangle from (8,8) to (312,160), size 304x152.
+  This area MUST be kept perfectly clean and dark — no text, no reflections,
+  no decorations, no scan patterns. A live video will be overlaid here at runtime.
+- NEON EDGE TRIM: A 1px neon light strip runs along the outer edge of the frame:
+  - Top edge: cyan (#00f0ff)
+  - Bottom edge: neon pink (#ff0080)
+  - Left & right edges: gradient transition from cyan (top) to pink (bottom),
+    done with alternating pixel dithering (NOT smooth gradient)
+- WALL MOUNT: A thin horizontal bracket visible behind the top edge — dark gray
+  (#1a1a2e) strip ~4px tall peeking above the frame, with 2 small mounting bolt
+  dots (#4a4a5e) at x~80 and x~240.
+- STATUS BAR: A very thin strip (4-6px) along the inside-bottom of the frame,
+  below the screen area, dark (#1a1a2e) containing:
+  - A tiny power LED dot (2x2px, cyan #00f0ff) on the left
+  - A tiny signal/wifi indicator (3 small dots, amber #ffaa00) on the right
+- CORNER ACCENTS: Small diagonal neon marks at all 4 outer corners of the frame
+  (2-3px each) — top corners cyan, bottom corners pink. Cyberpunk tech aesthetic.
+- AMBIENT GLOW: 1-2px of bright neon pixels extending outward from the frame edge
+  (representing light cast onto the wall behind). Cyan on top, pink on bottom.
+  This is NOT blur — it is distinct bright pixels only.
+
+FRAME DIFFERENCES (screen tint & edge glow intensity):
+
+Frame 1 (Off / Standby):
+- Screen: solid dark (#06070d), completely black, no glow
+- Neon edge trim: dim, ~30% opacity (barely visible)
+- Power LED: dim cyan at 40% opacity
+- Ambient wall glow: none
+- Overall feel: powered off, dormant
+
+Frame 2 (On / Glow A):
+- Screen: dark base (#06070d) with very faint teal wash (#0b1a24 at 35% opacity)
+- Neon edge trim: bright, ~80% opacity — cyan top, pink bottom vivid
+- Power LED: bright cyan 100%
+- Ambient wall glow: visible — 1-2px bright pixels around frame exterior
+- Faint horizontal scanlines across screen (#00f0ff at 8% opacity), spaced 6px
+
+Frame 3 (On / Glow B):
+- Screen: dark base (#06070d) with slightly shifted teal wash (#0f2a3a at 25% opacity)
+- Neon edge trim: ~60% opacity (creates breathing pulse when cycling 2↔3)
+- Power LED: bright cyan 100%
+- Ambient wall glow: slightly dimmer than Frame 2
+- Scanlines offset 2px from Frame 2, slightly different opacity (10%)
+
+CRITICAL STYLE RULES:
+- Pure pixel art, NO anti-aliasing, NO gradients, NO blur, NO glow effects
+- All edges crisp, pixel-aligned, hard pixel boundaries
+- Use dithering (checkerboard pattern) for color transitions on the side edges
+- Neon glow = extra bright pixels (1-2px), NOT transparency or gaussian blur
+- The screen rectangle (8,8,304,152) must be CLEAN FLAT DARK — no curved edges,
+  no reflections, no content. The game engine overlays a YouTube iframe on it.
+- The display should look THIN and SLEEK, mounted flush against a dark wall
+- Color palette: #0a0a14, #06070d, #0b1a24, #0f2a3a, #1a1a2e, #2a2a3a, #3a3a4e,
+  #4a4a5e, #00f0ff, #ff0080, #ffaa00, #8040c0, #e0e0e0
+- References: Cyberpunk 2077 in-game screens, Blade Runner 2049 wall displays,
+  VA-11 Hall-A bar TV, Ghost in the Shell digital signage, futuristic thin bezels
+```
+
+**Post-processing**: Verify exactly 960x180 total. Replace any near-black background outside the frame with transparency. Ensure screen area (8,8,304,152) per frame is clean dark with no stray pixels.
+
+### Display Atlas JSON (optional — code uses spritesheet loader)
+
+```json
+{
+  "frames": {
+    "tv-off":  { "frame": { "x": 0,   "y": 0, "w": 320, "h": 180 } },
+    "tv-on-a": { "frame": { "x": 320, "y": 0, "w": 320, "h": 180 } },
+    "tv-on-b": { "frame": { "x": 640, "y": 0, "w": 320, "h": 180 } }
+  },
+  "meta": {
+    "image": "retro-tv.png",
+    "size": { "w": 960, "h": 180 },
+    "scale": 1
+  }
+}
+```
+
+---
+
 ## Quick Reference: File → Location Map
 
 | Asset | File Path |
@@ -614,6 +722,7 @@ convert assets/sprites/characters/character-0.png -unique-colors txt: | wc -l
 | Character 7 (silver) | `assets/sprites/characters/character-7.png` + `.json` |
 | Door | `assets/sprites/objects/door.png` |
 | Jukebox | `assets/sprites/objects/jukebox.png` |
+| **Retro TV** | `assets/sprites/objects/retro-tv.png` |
 | Drinks | `assets/sprites/objects/drinks.png` + `.json` |
 | Walk cycle (opt.) | `assets/sprites/characters/character-walk.png` |
 | Neon sign | `assets/sprites/ui/neon-sign-main.png` |

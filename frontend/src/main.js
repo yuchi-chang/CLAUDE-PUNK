@@ -11,6 +11,7 @@ import VolumeControl from './ui/VolumeControl.js';
 import Jukebox from './ui/Jukebox.js';
 import RetroTV from './ui/RetroTV.js';
 import HotkeyManager from './managers/HotkeyManager.js';
+import retroTvPlayer from './services/retroTvPlayer.js';
 import wsService from './services/websocket.js';
 import audioManager from './services/audioManager.js';
 
@@ -50,9 +51,7 @@ const game = new Phaser.Game(config);
 // Wait for scene to be ready, then wire up UI overlays
 game.events.on('ready', () => {
   const scene = game.scene.getScene('BarScene');
-  import('./services/retroTvPlayer.js').then(({ default: retroTvPlayer }) => {
-    retroTvPlayer.ensurePlayers('retro-tv-player');
-  });
+  retroTvPlayer.ensurePlayers('retro-tv-player', 'retro-tv-mini-yt');
 
   // Initialize UI overlays
   const dialogBox = new DialogBox();
@@ -76,8 +75,40 @@ game.events.on('ready', () => {
   dialogBox.onClose = () => { scene.input.enabled = true; };
   jukeboxUI.onShow = () => { scene.input.enabled = false; };
   jukeboxUI.onHide = () => { scene.input.enabled = true; };
-  retroTvUI.onShow = () => { scene.input.enabled = false; };
-  retroTvUI.onHide = () => { scene.input.enabled = true; };
+  // ─── Retro TV Mini Player (synced YouTube on bar scene TV sprite) ───
+  const miniTv = document.getElementById('retro-tv-mini');
+
+  // TV screen area in game world coords
+  // 320x180 sprite at (1385,245) origin(0.5,1) scale 1.45
+  // Sprite top-left: x = 1385 - 232 = 1153, y = 245 - 261 = -16
+  // Screen in sprite: x=34 y=13 w=252 h=154 (all * 1.45)
+  const TV_SCREEN = { x: 1153 + 49.3, y: -16 + 18.85, w: 365.4, h: 223.3 };
+
+  function updateMiniTv() {
+    const shouldShow = retroTvPlayer.playing && !retroTvUI.visible;
+    miniTv.classList.toggle('hidden', !shouldShow);
+    if (!shouldShow) return;
+
+    const rect = game.canvas.getBoundingClientRect();
+    const sx = rect.width / 1920;
+    const sy = rect.height / 1080;
+    miniTv.style.left = (rect.left + TV_SCREEN.x * sx) + 'px';
+    miniTv.style.top = (rect.top + TV_SCREEN.y * sy) + 'px';
+    miniTv.style.width = (TV_SCREEN.w * sx) + 'px';
+    miniTv.style.height = (TV_SCREEN.h * sy) + 'px';
+  }
+
+  // Chain onto retroTvPlayer.onChange so both RetroTV UI and mini player update
+  const prevOnChange = retroTvPlayer.onChange;
+  retroTvPlayer.onChange = () => {
+    if (prevOnChange) prevOnChange();
+    updateMiniTv();
+  };
+
+  window.addEventListener('resize', updateMiniTv);
+
+  retroTvUI.onShow = () => { scene.input.enabled = false; updateMiniTv(); };
+  retroTvUI.onHide = () => { scene.input.enabled = true; updateMiniTv(); };
 
   // WebSocket connection is initiated by BarScene.setupWebSocketListeners()
   // after all event listeners are registered, ensuring no replay messages are lost.

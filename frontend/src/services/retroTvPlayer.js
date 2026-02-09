@@ -103,7 +103,7 @@ class RetroTvPlayer {
     this.playlist = []; // { videoId, title, channelTitle }
     this.currentIndex = -1;
     this.playing = false;
-    this.volume = 0.6;
+    this.volume = audioManager.getVolume();
     this.duration = 0;
     this.currentTime = 0;
     this.muted = false;
@@ -195,12 +195,12 @@ class RetroTvPlayer {
   }
 
   async ensurePlayers(primaryContainerId, tvContainerId) {
-    this.primaryContainerId = primaryContainerId;
-    this.tvContainerId = tvContainerId;
+    if (primaryContainerId) this.primaryContainerId = primaryContainerId;
+    if (tvContainerId) this.tvContainerId = tvContainerId;
     await loadYouTubeAPI();
 
     if (!this.primaryPlayer) {
-      const primaryHost = document.getElementById(primaryContainerId);
+      const primaryHost = document.getElementById(this.primaryContainerId);
       if (!primaryHost) return;
       this.primaryPlayer = new window.YT.Player(primaryHost, {
         width: '100%',
@@ -224,35 +224,36 @@ class RetroTvPlayer {
       });
     }
 
-    if (!this.tvPlayer && tvContainerId) {
-      const tvHost = document.getElementById(tvContainerId);
-      if (!tvHost) return;
-      this.tvPlayer = new window.YT.Player(tvHost, {
-        width: '100%',
-        height: '100%',
-        videoId: '',
-        playerVars: {
-          controls: 0,
-          modestbranding: 1,
-          rel: 0,
-          playsinline: 1,
-          mute: 1,
-        },
-        events: {
-          onReady: () => {
-            this.tvReady = true;
-            this.tvPlayer.mute();
-            const track = this.getCurrentTrack();
-            if (track) {
-              const startSeconds = this.primaryPlayer?.getCurrentTime?.() || 0;
-              this._syncTvLoad(track.videoId, startSeconds);
-              if (this.playing) {
-                this._syncTvPlay();
-              }
-            }
+    if (!this.tvPlayer && this.tvContainerId) {
+      const tvHost = document.getElementById(this.tvContainerId);
+      if (tvHost) {
+        this.tvPlayer = new window.YT.Player(tvHost, {
+          width: '100%',
+          height: '100%',
+          videoId: '',
+          playerVars: {
+            controls: 0,
+            modestbranding: 1,
+            rel: 0,
+            playsinline: 1,
+            mute: 1,
           },
-        },
-      });
+          events: {
+            onReady: () => {
+              this.tvReady = true;
+              this.tvPlayer.mute();
+              const track = this.getCurrentTrack();
+              if (track) {
+                const startSeconds = this.primaryPlayer?.getCurrentTime?.() || 0;
+                this._syncTvLoad(track.videoId, startSeconds);
+                if (this.playing) {
+                  this._syncTvPlay();
+                }
+              }
+            },
+          },
+        });
+      }
     }
   }
 

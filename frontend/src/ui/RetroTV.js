@@ -3,6 +3,8 @@
  */
 
 import retroTvPlayer from '../services/retroTvPlayer.js';
+import audioManager from '../services/audioManager.js';
+import jukeboxAudio from '../services/jukeboxAudio.js';
 
 export default class RetroTV {
   constructor() {
@@ -78,7 +80,7 @@ export default class RetroTV {
               </div>
               <span class="retro-tv-controls-divider">|</span>
               <div class="retro-tv-volume">
-                <label>VOL</label>
+                <button class="retro-tv-btn retro-tv-mute" title="Mute / Unmute">\u266B</button>
                 <input type="range" min="0" max="100" value="60" />
               </div>
             </div>
@@ -148,8 +150,23 @@ export default class RetroTV {
       retroTvPlayer.toggleLoopMode();
     });
 
+    this.panel.querySelector('.retro-tv-mute').addEventListener('click', () => {
+      const muted = !audioManager.isMuted();
+      audioManager.setMuted(muted);
+      jukeboxAudio.setMuted(muted);
+      retroTvPlayer.setMuted(muted);
+    });
+
     this.panel.querySelector('.retro-tv-volume input').addEventListener('input', (e) => {
-      retroTvPlayer.setVolume(parseInt(e.target.value, 10) / 100);
+      const val = parseInt(e.target.value, 10) / 100;
+      retroTvPlayer.setVolume(val);
+      audioManager.setVolume(val);
+      jukeboxAudio.setVolume(val);
+      if (audioManager.isMuted() && val > 0) {
+        audioManager.setMuted(false);
+        jukeboxAudio.setMuted(false);
+        retroTvPlayer.setMuted(false);
+      }
     });
 
     this.panel.querySelector('.retro-tv-progress input').addEventListener('input', (e) => {
@@ -359,6 +376,10 @@ export default class RetroTV {
     this.panel.querySelector('.retro-tv-time-duration').textContent = this._fmtTime(duration);
 
     this.panel.querySelector('.retro-tv-volume input').value = String(Math.round(retroTvPlayer.volume * 100));
+    const muteBtn = this.panel.querySelector('.retro-tv-mute');
+    const muted = audioManager.isMuted();
+    muteBtn.textContent = muted ? '\u2715' : '\u266B';
+    muteBtn.classList.toggle('active', muted);
 
     const searchInput = this.panel.querySelector('.retro-tv-search-input');
     const searchBtn = this.panel.querySelector('.retro-tv-search-btn');

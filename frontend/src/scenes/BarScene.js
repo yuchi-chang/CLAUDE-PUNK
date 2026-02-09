@@ -56,6 +56,10 @@ export default class BarScene extends Phaser.Scene {
     this.load.atlas('bartender', '/assets/sprites/characters/bartender.png', '/assets/sprites/characters/bartender.json');
     this.load.atlas('drinks', '/assets/sprites/objects/drinks.png', '/assets/sprites/objects/drinks.json');
     this.load.image('neon-sign', '/assets/sprites/ui/neon-sign-main.png');
+    this.load.spritesheet('retro-tv-sheet', '/assets/sprites/objects/retro-tv.png', {
+      frameWidth: 320,
+      frameHeight: 180,
+    });
   }
 
   create() {
@@ -116,11 +120,19 @@ export default class BarScene extends Phaser.Scene {
       this.generateJukeboxTexture();
     }
 
-    // Retro TV texture
-    const tvTex = this.textures.exists('retro-tv') ? this.textures.get('retro-tv') : null;
-    if (!tvTex || tvTex.frameTotal <= 1) {
-      if (tvTex) this.textures.remove('retro-tv');
-      this.generateRetroTVTexture();
+    // Retro TV texture — prefer loaded sprite sheet, fallback to generated
+    const tvSheet = this.textures.exists('retro-tv-sheet') ? this.textures.get('retro-tv-sheet') : null;
+    if (tvSheet && tvSheet.frameTotal > 1) {
+      // Use loaded sprite sheet
+      this._retroTvKey = 'retro-tv-sheet';
+    } else {
+      // Fallback to procedural
+      const tvTex = this.textures.exists('retro-tv') ? this.textures.get('retro-tv') : null;
+      if (!tvTex || tvTex.frameTotal <= 1) {
+        if (tvTex) this.textures.remove('retro-tv');
+        this.generateRetroTVTexture();
+      }
+      this._retroTvKey = 'retro-tv';
     }
   }
 
@@ -894,11 +906,12 @@ export default class BarScene extends Phaser.Scene {
   }
 
   drawRetroTV() {
-    const tvX = 1300;
-    const tvY = 260;
-    const tvScale = 3;
+    const tvX = 1385;
+    const tvY = 245;
+    const useSheet = this._retroTvKey === 'retro-tv-sheet';
+    const tvScale = useSheet ? 1.45 : 3;
 
-    const tv = this.add.sprite(tvX, tvY, 'retro-tv', 0);
+    const tv = this.add.sprite(tvX, tvY, this._retroTvKey, 0);
     tv.setOrigin(0.5, 1);
     tv.setScale(tvScale);
     tv.setDepth(6);
@@ -907,9 +920,9 @@ export default class BarScene extends Phaser.Scene {
     const glow = this.add.graphics();
     glow.setDepth(5);
     glow.fillStyle(0x00f0ff, 0.06);
-    glow.fillCircle(tvX, tvY - 28, 120);
+    glow.fillCircle(tvX, tvY - 144, 260);
     glow.fillStyle(0xff0080, 0.04);
-    glow.fillCircle(tvX, tvY - 28, 80);
+    glow.fillCircle(tvX, tvY - 144, 180);
 
     let frame = 1;
     this.time.addEvent({
