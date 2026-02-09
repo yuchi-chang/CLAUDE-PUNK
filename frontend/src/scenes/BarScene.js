@@ -1570,6 +1570,11 @@ export default class BarScene extends Phaser.Scene {
     const costDisplay = new CostDisplay(this, sessionId, seat.drinkAnchor);
 
     this.patrons.set(sessionId, { character, drinkManager, costDisplay, seat });
+
+    // If music is already playing, queue music note for this character
+    if (this._musicWasPlaying) {
+      character.showMusicNote();
+    }
   }
 
   findAvailableSeat() {
