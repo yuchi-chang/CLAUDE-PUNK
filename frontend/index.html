@@ -16,15 +16,36 @@
       display: flex;
       align-items: center;
       justify-content: center;
+      position: relative;
+    }
+    #bg-video {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      min-width: 100%;
+      min-height: 100%;
+      object-fit: contain;
+      z-index: 0;
+      pointer-events: none;
     }
     #game-container canvas {
       image-rendering: pixelated;
       image-rendering: crisp-edges;
+      position: relative;
+      z-index: 1;
     }
   </style>
 </head>
 <body>
-  <div id="game-container"></div>
+  <div id="game-container">
+    <video id="bg-video" autoplay loop muted playsinline></video>
+    <script>
+      const bgs = ['bg01.mp4', 'bg02.mp4', 'bg03.mp4'];
+      const pick = bgs[Math.floor(Math.random() * bgs.length)];
+      document.getElementById('bg-video').src = '/assets/backgrounds/' + pick;
+    </script>
+  </div>
 
   <!-- Folder Picker Overlay -->
   <div id="folder-picker-overlay" class="hidden"></div>

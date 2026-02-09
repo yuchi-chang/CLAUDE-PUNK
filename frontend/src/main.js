@@ -41,15 +41,37 @@ const config = {
   },
   scene: [BarScene],
   parent: 'game-container',
-  backgroundColor: '#0a0a14',
+  transparent: true,
 };
 
 // ─── Initialize ─────────────────────────────────────────────────
 
 const game = new Phaser.Game(config);
 
+// ─── Video Background Sync ──────────────────────────────────────
+// Keep the bg-video element sized and positioned to match the Phaser canvas exactly.
+function syncVideoToCanvas() {
+  const video = document.getElementById('bg-video');
+  const canvas = game.canvas;
+  if (!video || !canvas) return;
+  const rect = canvas.getBoundingClientRect();
+  video.style.position = 'absolute';
+  video.style.left = `${rect.left}px`;
+  video.style.top = `${rect.top}px`;
+  video.style.width = `${rect.width}px`;
+  video.style.height = `${rect.height}px`;
+  video.style.minWidth = 'unset';
+  video.style.minHeight = 'unset';
+  video.style.transform = 'none';
+  video.style.objectFit = 'fill';
+}
+window.addEventListener('resize', syncVideoToCanvas);
+// Run once after Phaser finishes initial layout
+setTimeout(syncVideoToCanvas, 100);
+
 // Wait for scene to be ready, then wire up UI overlays
 game.events.on('ready', () => {
+  syncVideoToCanvas();
   const scene = game.scene.getScene('BarScene');
   retroTvPlayer.ensurePlayers('retro-tv-player', 'retro-tv-mini-yt');
 
@@ -79,10 +101,10 @@ game.events.on('ready', () => {
   const miniTv = document.getElementById('retro-tv-mini');
 
   // TV screen area in game world coords
-  // 320x180 sprite at (1385,245) origin(0.5,1) scale 1.45
-  // Sprite top-left: x = 1385 - 232 = 1153, y = 245 - 261 = -16
-  // Screen in sprite: x=34 y=13 w=252 h=154 (all * 1.45)
-  const TV_SCREEN = { x: 1153 + 49.3, y: -16 + 18.85, w: 365.4, h: 223.3 };
+  // 320x180 sprite at (1413,245) origin(0.5,1) scale 1.1745
+  // Sprite top-left: x = 1413 - 187.9 = 1225.1, y = 233 - 211.4 = 21.6
+  // Screen in sprite: x=34 y=13 w=252 h=154 (all * 1.1745)
+  const TV_SCREEN = { x: 1225.1 + 39.9, y: 21.6 + 15.3, w: 296.0, h: 180.9 };
 
   function updateMiniTv() {
     const shouldShow = retroTvPlayer.playing && !retroTvUI.visible;

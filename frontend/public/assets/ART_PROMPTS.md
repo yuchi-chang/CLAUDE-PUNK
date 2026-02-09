@@ -293,24 +293,41 @@ Place this as `character-{N}.json` next to each PNG, replacing `{N}` with the va
 
 ---
 
-## 3. Door Sprite (Flat Front View)
+## 3. Door Sprite Sheet (4-Frame Hover Animation)
 
 **File**: `assets/sprites/objects/door.png`
-**Dimensions**: 90x150 pixels (game-ready at 1920x1080)
+**Dimensions**: 480x240 pixels (4 frames × 120x240 each, game-ready at 1920x1080)
 **Format**: PNG with alpha
+**Layout**: Horizontal strip, 4 frames left-to-right
 
 **Prompt**:
 ```
-Pixel art cyberpunk sliding door, flat front view, on a solid black (#000000) background.
-Dark metal door panels (#2a2a3a) with gray metallic frame (#4a4a5e).
-Bright neon cyan (#00f0ff) 1-pixel outline along the door frame edges.
-Amber (#ffaa00) door handle on the right side.
-Small neon pink (#ff0080) "ENTER" text label above the door frame.
+Pixel art cyberpunk sliding door sprite sheet, 4 frames in a horizontal strip on a solid bright green (#00ff00) background.
+Each frame is 120x240 pixels. The door progressively cracks open from left to right.
+IMPORTANT: The bright green (#00ff00) is the chroma key color — use it for ALL areas that should become
+transparent: the background around the door AND the visible gap/crack when the door opens.
+
+Frame 1 (idle): Door fully closed. Dark metal panels (#2a2a3a), gray metallic frame (#4a4a5e).
+  Dim neon cyan (#00f0ff) 1-pixel border. Amber (#ffaa00) door handle on right. Dim pink (#ff0080) "ENTER" sign above.
+  No crack — door fully sealed. Green background visible only around the door exterior.
+
+Frame 2 (slight crack): Door panel shifts left ~4px, revealing a thin gap on the right edge.
+  The gap is filled with bright green (#00ff00) — this will become see-through in-game.
+  Thin cyan (#00f0ff) glow line along the crack edges. Neon border slightly brighter.
+
+Frame 3 (opening): Door panel shifts left ~10px, wider green (#00ff00) gap visible through the crack.
+  Cyan glow lines on both edges of the gap. Double neon border glow. Handle has a warm amber halo.
+
+Frame 4 (fully open): Door panel shifted left ~18px, wide green (#00ff00) gap showing through.
+  The player sees through the door opening in-game. Bright cyan edge glow.
+  Maximum neon glow, handle halo, "ENTER" sign at full brightness.
+
 Style: crisp pixel art, hard edges, no anti-aliasing, no gradients, no blur.
-The background must be pure solid black with no patterns or textures.
+The background must be pure solid bright green (#00ff00) with no patterns or textures.
+Do NOT use any green (#00ff00) on the door itself — only for transparent areas.
 ```
 
-**Post-processing**: Replace solid black (#000000) background with transparency, then resize to 90x150.
+**Post-processing**: Replace bright green (#00ff00) with transparency. Final sheet: 480x240.
 
 ---
 
@@ -425,7 +442,7 @@ Simple 4-frame walk cycle loop. Strict pixel art, transparent background.
 
 ---
 
-## 6. Neon Sign — "CLAUDE PUNK" (2.5D Angled)
+## 6. Neon Sign — "CLAUDE PUNK" (Wild Fancy Style)
 
 **File**: `assets/sprites/ui/neon-sign-main.png`
 **Dimensions**: 200x56 pixels
@@ -433,25 +450,56 @@ Simple 4-frame walk cycle loop. Strict pixel art, transparent background.
 
 **Prompt**:
 ```
-Pixel art neon bar sign, 200x56 pixels, cyberpunk style, 2.5D ANGLED perspective.
-A wall-mounted sign with the text "CLAUDE PUNK" formed by neon tubes.
-The sign has a slight ISOMETRIC TILT — the right side is ~4 pixels lower than the left,
-matching a 3/4 top-down perspective where the back wall recedes to the right.
+Pixel art neon bar sign, 200x56 pixels, EXTRAVAGANT cyberpunk style, 2.5D ANGLED perspective.
+A wild, eye-catching wall-mounted neon sign — the kind of flashy centerpiece that
+dominates a legendary underground bar. The text "CLAUDE PUNK" is formed by DOUBLE-TUBE
+neon with staggered letter heights, giving it an uneven, hand-bent punk attitude.
 
-The backing plate is a PARALLELOGRAM (not rectangle):
-- Top-left corner at (4, 4), top-right at (196, 8)
-- Bottom-left at (4, 44), bottom-right at (196, 48)
-- Filled with dark metal (#12121f) with a gray (#2a2a3a) border
-- A 4px-tall bottom face is visible below the plate (even darker #0a0a14)
-  to give it physical thickness on the wall.
+The sign has a slight ISOMETRIC TILT — right side ~4 pixels lower than left, matching
+a 3/4 top-down view where the back wall recedes to the right.
 
-The neon text follows the tilt angle:
-- "CLAUDE PUNK" in bright white (#ffffff) core with 1-pixel cyan (#00f0ff) outline
-- "BAR & SESSIONS" below in pink (#ff0080) with white core, smaller
-- Mounting brackets (gray metal dots #4a4a5e) at 4 points along the top
+BACKING PLATE (parallelogram, not rectangle):
+- Top-left (4,4), top-right (196,8), bottom-left (4,44), bottom-right (196,48)
+- Filled with dark metal (#12121f) covered in RIVET DOTS and faint scratches
+- A 4px-tall bottom face (#0a0a14) gives it physical thickness
+- Gray (#2a2a3a) border with decorative DIAGONAL CUT corners (2-3px notches)
 
-Glow effect: additional bright pixels (1-2px) around letters, NOT blur/gradient.
+MAIN TEXT — "CLAUDE PUNK":
+- Letters are WILD and UNEVEN — some tilt left, some tilt right, varying baselines
+  like hand-bent glass tubes with punk energy
+- Double-tube neon effect: outer tube cyan (#00f0ff), inner tube bright white (#ffffff)
+- Each letter has a 2-pixel bright halo in alternating colors:
+  C=cyan, L=pink, A=cyan, U=pink, D=cyan, E=pink, (space),
+  P=pink, U=cyan, N=pink, K=cyan
+- The "K" at the end kicks out with an exaggerated DIAGONAL SLASH extending
+  2-3 pixels beyond the plate edge — rebellious, breaking the frame
+
+DECORATIVE ELEMENTS:
+- A small pixel-art LIGHTNING BOLT (#ffaa00 amber) between "CLAUDE" and "PUNK"
+  replacing the space — electrified divider
+- DRIPPING NEON PIXELS: 2-3 bright cyan (#00f0ff) pixels hanging below random
+  letters like molten neon dripping down — raw, unfinished aesthetic
+- Tiny STAR SPARKLE marks (3-pixel cross shape, #ffffff) at 2 random positions
+  around the text — one top-left area, one bottom-right
+- CORNER FLOURISHES: small neon pink (#ff0080) zigzag accents (3-4px) at the
+  top-left and bottom-right corners of the plate
+
+SUBTEXT — "BAR & SESSIONS":
+- Below main text in smaller neon pink (#ff0080) with white (#ffffff) core
+- Letters are more uniform but with a slight WAVE — baseline undulates gently
+- An underline made of alternating cyan and pink dashes (1px each)
+
+MOUNTING:
+- 4 mounting brackets (gray metal #4a4a5e) along the top, but 2 of them are
+  BENT/CROOKED — suggesting the sign has been through some rough nights
+- Thin EXPOSED WIRES (1px lines, #4a4a5e) visible between some brackets,
+  connecting to the neon tubes
+
+Glow effect: 2-3px of extra bright pixels around letters in matching colors,
+NOT blur/gradient. The glow is INTENSE — this sign screams for attention.
 Strict pixel art, no anti-aliasing. Transparent background outside the plate.
+References: Akira neon signs, Blade Runner bar signage, punk rock concert posters,
+Tokyo Kabukicho alley neon chaos.
 ```
 
 ---

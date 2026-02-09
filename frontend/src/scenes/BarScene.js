@@ -48,8 +48,14 @@ export default class BarScene extends Phaser.Scene {
 
   preload() {
     this.load.image('bar-bg', '/assets/backgrounds/bar-interior.png');
-    this.load.image('door', '/assets/sprites/objects/door.png');
-    this.load.atlas('jukebox', '/assets/sprites/objects/jukebox.png', '/assets/sprites/objects/jukebox.json');
+    this.load.spritesheet('door-sheet', '/assets/sprites/objects/door.png', {
+      frameWidth: 140,
+      frameHeight: 240,
+    });
+    this.load.spritesheet('jukebox', '/assets/sprites/objects/jukebox.png', {
+      frameWidth: 125,
+      frameHeight: 192,
+    });
     for (let i = 0; i < 8; i++) {
       this.load.atlas(`character-${i}`, `/assets/sprites/characters/character-${i}.png`, `/assets/sprites/characters/character-${i}.json`);
     }
@@ -109,12 +115,19 @@ export default class BarScene extends Phaser.Scene {
       this.generateDrinkTexture();
     }
 
-    // Door texture
-    if (!this.textures.exists('door')) {
-      this.generateDoorTexture();
+    // Door texture — prefer loaded spritesheet, fallback to procedural
+    const doorSheet = this.textures.exists('door-sheet') ? this.textures.get('door-sheet') : null;
+    if (doorSheet && doorSheet.frameTotal > 2) {
+      this._doorKey = 'door-sheet';
+    } else {
+      if (doorSheet) this.textures.remove('door-sheet');
+      if (!this.textures.exists('door')) {
+        this.generateDoorTexture();
+      }
+      this._doorKey = 'door';
     }
 
-    // Jukebox texture — check frameTotal to detect failed atlas loads
+    // Jukebox texture — check frameTotal to detect failed spritesheet loads
     const jbTex = this.textures.exists('jukebox') ? this.textures.get('jukebox') : null;
     if (!jbTex || jbTex.frameTotal <= 2) {
       if (jbTex) this.textures.remove('jukebox');
@@ -220,29 +233,86 @@ export default class BarScene extends Phaser.Scene {
 
   generateDoorTexture() {
     const g = this.make.graphics({ x: 0, y: 0, add: false });
+    const fw = 140;
+    const fh = 240;
 
-    // Door frame
-    g.fillStyle(0x4a4a5e);
-    g.fillRect(0, 0, 120, 240);
+    // 4 frames: idle → progressively opening with neon intensifying
+    // Frame 0: closed, dim neon
+    // Frame 1: slight crack, neon warming up
+    // Frame 2: wider crack, bright neon + light spill
+    // Frame 3: open crack, full glow + bright light bleed
+    const crackWidths = [0, 4, 10, 18];
+    const neonAlphas = [0.5, 0.7, 0.9, 1.0];
+    const lightSpill = [0, 0.02, 0.06, 0.12];
+    const handleGlow = [0.6, 0.75, 0.9, 1.0];
+    const signAlphas = [0.6, 0.75, 0.9, 1.0];
 
-    // Door panel
-    g.fillStyle(0x2a2a3a);
-    g.fillRect(12, 12, 96, 216);
+    for (let frame = 0; frame < 4; frame++) {
+      const ox = frame * fw;
+      const crack = crackWidths[frame];
+      const border = 12; // frame border thickness
 
-    // Neon border
-    g.lineStyle(1, 0x00f0ff, 0.8);
-    g.strokeRect(6, 6, 108, 228);
+      // Door frame — drawn as border pieces, NOT a solid fill.
+      // The crack gap stays transparent so the game scene shows through.
+      g.fillStyle(0x4a4a5e);
+      g.fillRect(ox, 0, fw, border);                          // top
+      g.fillRect(ox, fh - border, fw, border);                // bottom
+      g.fillRect(ox, 0, border, fh);                          // left
+      g.fillRect(ox + fw - border, 0, border, fh);            // right
 
-    // Door handle
-    g.fillStyle(0xffaa00);
-    g.fillRect(84, 108, 12, 24);
+      // Door panel — shifts left to reveal crack on right side
+      const panelW = fw - border * 2; // 116 for fw=140
+      g.fillStyle(0x2a2a3a);
+      g.fillRect(ox + border, border, panelW - crack, fh - border * 2);
 
-    // "ENTER" text area (neon sign above door)
-    g.fillStyle(0xff0080);
-    g.fillRect(24, 24, 72, 24);
+      // Crack edge glow (thin neon lines along the crack border, not filling it)
+      if (crack > 0) {
+        // Cyan edge on the panel side of the crack
+        g.fillStyle(0x00f0ff, neonAlphas[frame] * 0.6);
+        g.fillRect(ox + border + panelW - crack, border, 1, fh - border * 2);
+        // Cyan edge on the frame side of the crack
+        g.fillStyle(0x00f0ff, neonAlphas[frame] * 0.4);
+        g.fillRect(ox + fw - border - 1, border, 1, fh - border * 2);
+      }
 
-    g.generateTexture('door', 120, 240);
+      // Neon border — intensifies per frame
+      g.lineStyle(1, 0x00f0ff, neonAlphas[frame]);
+      g.strokeRect(ox + 6, 6, fw - 12, fh - 12);
+      // Second border line for frames 2-3 (double glow)
+      if (frame >= 2) {
+        g.lineStyle(1, 0x00f0ff, neonAlphas[frame] * 0.3);
+        g.strokeRect(ox + 4, 4, fw - 8, fh - 8);
+      }
+
+      // Door handle — glows warmer
+      g.fillStyle(0xffaa00, handleGlow[frame]);
+      g.fillRect(ox + fw - border - 24 - crack, 108, 12, 24);
+      if (frame >= 2) {
+        // Handle glow halo
+        g.fillStyle(0xffaa00, handleGlow[frame] * 0.15);
+        g.fillCircle(ox + fw - border - 18 - crack, 120, 18);
+      }
+
+      // "ENTER" neon sign above door
+      g.fillStyle(0xff0080, signAlphas[frame]);
+      g.fillRect(ox + (fw - 72) / 2, 24, 72, 24);
+      if (frame >= 1) {
+        // Sign glow
+        g.fillStyle(0xff0080, signAlphas[frame] * 0.1);
+        g.fillCircle(ox + fw / 2, 36, 42 + frame * 6);
+      }
+    }
+
+    const tmpKey = '__door_tmp';
+    g.generateTexture(tmpKey, fw * 4, fh);
     g.destroy();
+
+    const source = this.textures.get(tmpKey).getSourceImage();
+    this.textures.addSpriteSheet('door', source, {
+      frameWidth: fw,
+      frameHeight: fh,
+    });
+    this.textures.remove(tmpKey);
   }
 
   generateJukeboxTexture() {
@@ -825,14 +895,13 @@ export default class BarScene extends Phaser.Scene {
     const doorX = DOOR_POSITION.x;
     const doorY = DOOR_POSITION.y;
 
-    // Always show the door sprite (with real bg it overlays the frame)
-    const door = this.add.sprite(doorX, doorY, 'door');
+    const door = this.add.sprite(doorX, doorY, this._doorKey, 0);
     door.setOrigin(0.5, 1);
     door.setScale(1.3);
     door.setDepth(2);
     door.setInteractive({ useHandCursor: true });
 
-    // Subtle breathing animation
+    // Subtle breathing animation on idle frame
     this.tweens.add({
       targets: door,
       alpha: { from: 0.85, to: 1 },
@@ -842,8 +911,52 @@ export default class BarScene extends Phaser.Scene {
       ease: 'Sine.easeInOut',
     });
 
-    door.on('pointerover', () => door.setTint(0x44ffff));
-    door.on('pointerout', () => door.clearTint());
+    // Hover animation: step through frames 0→3 progressively
+    let doorFrame = 0;
+    let doorHovered = false;
+    const FRAME_DELAY = 80; // ms between each frame step
+    const frameOffsetX = [0, 7, 14, 21]; // per-frame x compensation for sprite alignment
+
+    const stepDoorFrame = () => {
+      if (door.active === false) return;
+      const target = doorHovered ? 3 : 0;
+      if (doorFrame === target) return;
+
+      doorFrame += doorHovered ? 1 : -1;
+      door.setFrame(doorFrame);
+      door.x = doorX + frameOffsetX[doorFrame];
+
+      if (doorFrame !== target) {
+        this.time.delayedCall(FRAME_DELAY, stepDoorFrame);
+      }
+    };
+
+    door.on('pointerover', () => {
+      doorHovered = true;
+      // Stop breathing tween and snap to full alpha during hover
+      this.tweens.killTweensOf(door);
+      door.setAlpha(1);
+      stepDoorFrame();
+    });
+
+    door.on('pointerout', () => {
+      doorHovered = false;
+      stepDoorFrame();
+      // Restart breathing once fully closed (frame 0)
+      this.time.delayedCall(FRAME_DELAY * 4, () => {
+        if (!doorHovered && door.active !== false) {
+          this.tweens.add({
+            targets: door,
+            alpha: { from: 0.85, to: 1 },
+            duration: 1500,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut',
+          });
+        }
+      });
+    });
+
     door.on('pointerdown', () => {
       if (this.folderPicker) this.folderPicker.show();
     });
@@ -851,11 +964,14 @@ export default class BarScene extends Phaser.Scene {
 
   drawJukebox() {
     const jbX = 245;
-    const jbY = 920;
+    const jbY = 930;
 
     const jukebox = this.add.sprite(jbX, jbY, 'jukebox', 0);
     jukebox.setOrigin(0.5, 1);
-    jukebox.setScale(3.5);
+    // Procedural texture is 56x96, real sprite is 125x192 — both need ~3.5x to fill display
+    const jbFrame = this.textures.get('jukebox').get(0);
+    const jbScale = (56 * 3.5) / jbFrame.width;
+    jukebox.setScale(jbScale);
     jukebox.setDepth(5);
     jukebox.setInteractive({ useHandCursor: true });
 
@@ -907,10 +1023,10 @@ export default class BarScene extends Phaser.Scene {
   }
 
   drawRetroTV() {
-    const tvX = 1385;
-    const tvY = 245;
+    const tvX = 1413;
+    const tvY = 233;
     const useSheet = this._retroTvKey === 'retro-tv-sheet';
-    const tvScale = useSheet ? 1.45 : 3;
+    const tvScale = useSheet ? 1.1745 : 2.43;
 
     const tv = this.add.sprite(tvX, tvY, this._retroTvKey, 0);
     tv.setOrigin(0.5, 1);
@@ -1031,9 +1147,9 @@ export default class BarScene extends Phaser.Scene {
     }
 
     // Outer glow halo (still drawn -- adds atmosphere on top of background)
-    sg.fillStyle(0x00f0ff, 0.04);
+    sg.fillStyle(0xffaa00, 0.04);
     sg.fillCircle(signX + 6, signY + 6, 330);
-    sg.fillStyle(0x00f0ff, 0.06);
+    sg.fillStyle(0xffaa00, 0.06);
     sg.fillCircle(signX + 6, signY + 6, 195);
 
     if (!this.hasRealBackground) {
@@ -1046,92 +1162,104 @@ export default class BarScene extends Phaser.Scene {
       });
     }
 
-    // Main neon text -- triple-layered with slight rotation for 2.5D tilt
     const signRotation = 0.015; // subtle tilt matching wall angle
 
-    // Layer 1: outer glow
-    const glowText = this.add.text(signX, signY, 'CLAUDE PUNK', {
-      fontSize: '54px',
-      fontFamily: 'Rajdhani, sans-serif',
-      fontStyle: 'bold',
-      color: '#00f0ff',
-      stroke: '#00f0ff',
-      strokeThickness: 18,
-    });
-    glowText.setOrigin(0.5, 0.5);
-    glowText.setDepth(16);
-    glowText.setAlpha(0.25);
-    glowText.setRotation(signRotation);
+    // Use the loaded neon-sign image if available, otherwise fall back to text
+    if (this.textures.exists('neon-sign')) {
+      // Single image contains both "CLAUDE PUNK" and "BAR & SESSIONS"
+      const signImg = this.add.image(signX, signY, 'neon-sign');
+      signImg.setOrigin(0.5, 0.5);
+      signImg.setDepth(18);
+      signImg.setRotation(signRotation);
 
-    // Layer 2: mid glow
-    const midText = this.add.text(signX, signY, 'CLAUDE PUNK', {
-      fontSize: '54px',
-      fontFamily: 'Rajdhani, sans-serif',
-      fontStyle: 'bold',
-      color: '#00f0ff',
-      stroke: '#00f0ff',
-      strokeThickness: 9,
-    });
-    midText.setOrigin(0.5, 0.5);
-    midText.setDepth(17);
-    midText.setAlpha(0.5);
-    midText.setRotation(signRotation);
+      // Scale the 600x168 image to fit the sign area (~570px wide)
+      const targetWidth = 570;
+      signImg.setScale(targetWidth / signImg.width);
 
-    // Layer 3: bright core
-    const coreText = this.add.text(signX, signY, 'CLAUDE PUNK', {
-      fontSize: '54px',
-      fontFamily: 'Rajdhani, sans-serif',
-      fontStyle: 'bold',
-      color: '#ffffff',
-      stroke: '#00f0ff',
-      strokeThickness: 3,
-    });
-    coreText.setOrigin(0.5, 0.5);
-    coreText.setDepth(18);
-    coreText.setRotation(signRotation);
+      signImg._baseAlpha = 1;
+      this.neonSignLayers = [signImg];
+      this.createSignFlicker(this.neonSignLayers);
+    } else {
+      // Fallback: text-based neon sign
+      const glowText = this.add.text(signX, signY, 'CLAUDE PUNK', {
+        fontSize: '54px',
+        fontFamily: 'Rajdhani, sans-serif',
+        fontStyle: 'bold',
+        color: '#00f0ff',
+        stroke: '#00f0ff',
+        strokeThickness: 18,
+      });
+      glowText.setOrigin(0.5, 0.5);
+      glowText.setDepth(16);
+      glowText.setAlpha(0.25);
+      glowText.setRotation(signRotation);
 
-    // Store base alphas for flicker restoration
-    glowText._baseAlpha = 0.25;
-    midText._baseAlpha = 0.5;
-    coreText._baseAlpha = 1;
+      const midText = this.add.text(signX, signY, 'CLAUDE PUNK', {
+        fontSize: '54px',
+        fontFamily: 'Rajdhani, sans-serif',
+        fontStyle: 'bold',
+        color: '#00f0ff',
+        stroke: '#00f0ff',
+        strokeThickness: 9,
+      });
+      midText.setOrigin(0.5, 0.5);
+      midText.setDepth(17);
+      midText.setAlpha(0.5);
+      midText.setRotation(signRotation);
 
-    // Flicker all main sign layers as a synchronized group
-    this.neonSignLayers = [glowText, midText, coreText];
-    this.createSignFlicker(this.neonSignLayers);
+      const coreText = this.add.text(signX, signY, 'CLAUDE PUNK', {
+        fontSize: '54px',
+        fontFamily: 'Rajdhani, sans-serif',
+        fontStyle: 'bold',
+        color: '#ffffff',
+        stroke: '#00f0ff',
+        strokeThickness: 3,
+      });
+      coreText.setOrigin(0.5, 0.5);
+      coreText.setDepth(18);
+      coreText.setRotation(signRotation);
 
-    // -- Subtext "BAR & SESSIONS" in pink neon --
-    const subY = signY + 48;
-    const subGlow = this.add.text(signX, subY, 'BAR & SESSIONS', {
-      fontSize: '21px',
-      fontFamily: 'Rajdhani, sans-serif',
-      fontStyle: 'bold',
-      color: '#ff0080',
-      stroke: '#ff0080',
-      strokeThickness: 12,
-    });
-    subGlow.setOrigin(0.5, 0.5);
-    subGlow.setDepth(16);
-    subGlow.setAlpha(0.2);
-    subGlow.setRotation(signRotation);
+      glowText._baseAlpha = 0.25;
+      midText._baseAlpha = 0.5;
+      coreText._baseAlpha = 1;
 
-    const subCore = this.add.text(signX, subY, 'BAR & SESSIONS', {
-      fontSize: '21px',
-      fontFamily: 'Rajdhani, sans-serif',
-      fontStyle: 'bold',
-      color: '#ffccee',
-      stroke: '#ff0080',
-      strokeThickness: 3,
-    });
-    subCore.setOrigin(0.5, 0.5);
-    subCore.setDepth(17);
-    subCore.setRotation(signRotation);
+      this.neonSignLayers = [glowText, midText, coreText];
+      this.createSignFlicker(this.neonSignLayers);
 
-    subGlow._baseAlpha = 0.2;
-    subCore._baseAlpha = 1;
-    this.createSignFlicker([subGlow, subCore]);
+      // Subtext "BAR & SESSIONS" in pink neon (only for text fallback)
+      const subY = signY + 48;
+      const subGlow = this.add.text(signX, subY, 'BAR & SESSIONS', {
+        fontSize: '21px',
+        fontFamily: 'Rajdhani, sans-serif',
+        fontStyle: 'bold',
+        color: '#ff0080',
+        stroke: '#ff0080',
+        strokeThickness: 12,
+      });
+      subGlow.setOrigin(0.5, 0.5);
+      subGlow.setDepth(16);
+      subGlow.setAlpha(0.2);
+      subGlow.setRotation(signRotation);
+
+      const subCore = this.add.text(signX, subY, 'BAR & SESSIONS', {
+        fontSize: '21px',
+        fontFamily: 'Rajdhani, sans-serif',
+        fontStyle: 'bold',
+        color: '#ffccee',
+        stroke: '#ff0080',
+        strokeThickness: 3,
+      });
+      subCore.setOrigin(0.5, 0.5);
+      subCore.setDepth(17);
+      subCore.setRotation(signRotation);
+
+      subGlow._baseAlpha = 0.2;
+      subCore._baseAlpha = 1;
+      this.createSignFlicker([subGlow, subCore]);
+    }
 
     // -- Agent type legend --
-    const legendY = 1002;
+    const legendY = 16;
     const claudeLabel = this.add.text(30, legendY, '● claude', {
       fontSize: '18px',
       fontFamily: 'JetBrains Mono, monospace',
@@ -1147,7 +1275,7 @@ export default class BarScene extends Phaser.Scene {
     codexLabel.setDepth(20);
 
     // -- Connection status indicator --
-    this.connectionText = this.add.text(30, 1050, '● OFFLINE', {
+    this.connectionText = this.add.text(30, 46, '● OFFLINE', {
       fontSize: '21px',
       fontFamily: 'JetBrains Mono, monospace',
       color: '#ff0080',
@@ -1155,12 +1283,12 @@ export default class BarScene extends Phaser.Scene {
     this.connectionText.setDepth(20);
 
     // -- Seat count --
-    this.seatCountText = this.add.text(1890, 1050, `${SEATS.length - this.occupiedSeats.size} seats open`, {
+    this.seatCountText = this.add.text(1890, 16, `${SEATS.length - this.occupiedSeats.size} seats open`, {
       fontSize: '21px',
       fontFamily: 'JetBrains Mono, monospace',
       color: '#8888aa',
     });
-    this.seatCountText.setOrigin(1, 1);
+    this.seatCountText.setOrigin(1, 0);
     this.seatCountText.setDepth(20);
   }
 

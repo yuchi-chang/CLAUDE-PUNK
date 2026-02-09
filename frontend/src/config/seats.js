@@ -27,7 +27,7 @@ export const SEATS = [
 ];
 
 // Door position -- on the right wall where characters spawn and walk from
-export const DOOR_POSITION = { x: 1505, y: 545 };
+export const DOOR_POSITION = { x: 1490, y: 545 };
 
 // Drink placement offsets relative to seat drinkAnchor
 export const DRINK_OFFSETS = [
